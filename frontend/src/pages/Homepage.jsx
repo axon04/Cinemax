@@ -66,7 +66,8 @@ const Homepage = () => {
   }
 
   return (
-    <Box sx={{ borderRadius: '10px', marginBottom: 8}}>
+    <Box sx={{ borderRadius: '10px', marginBottom: 8 }}>
+
       {featuredMovie !== null && (
         <div onClick={handleWideMovie}>
           <WideMovieCard movie={featuredMovie} />

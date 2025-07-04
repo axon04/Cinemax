@@ -4,3 +4,4 @@ backend/.env
 frontend/.env
 frontend/data
 backend/data
+docs

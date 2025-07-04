@@ -144,15 +144,65 @@ const getUpcoming = async (req, res) => {
 };
 
 // Get featured movies
+// const getFeaturedMovie = async (req, res) => {
+//   try {
+//     // const featuredMovies = await Movie.find({ isFeatured: true });
+//     const featuredMovie = await Movie.findOne({ title: "Captain America: Brave New World" });
+//     res.status(200).json({
+//       status: 'success',
+//       message: 'Featured movies fetched successfully',
+//       data: featuredMovie,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({
+//       status: 'error',
+//       message: error.message,
+//     });
+//   }
+// };
+
+// Method for making a movie featured = true by taking movieId from params
+// const makeMovieFeatured = async (req, res) => {
+//   const _id = req.params.movieId;
+//   try {
+//     const movie = await Movie.findByIdAndUpdate(_id, { isFeatured: true });
+//     return !movie
+//       ? res.status(404).send({
+//         status: "error",
+//         message: "Movie not found!"
+//       })
+//       : res.send({
+//         status: "success",
+//         message: "Movie featured successfully!",
+//         data: movie,
+//       });
+//   } catch (error) {
+//     res.status(500).send({
+//       status: "error",
+//       message: error.message,
+//     });
+//   }
+// };
+
+// New Method for getting the one and only featured movie
 const getFeaturedMovie = async (req, res) => {
   try {
-    // const featuredMovies = await Movie.find({ isFeatured: true });
-    const featuredMovie = await Movie.findOne({title: "Captain America: Brave New World"});
+    const featuredMovie = await Movie.findOne({ isFeatured: true });
+
+    if (!featuredMovie) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No featured movie found',
+      });
+    }
+
     res.status(200).json({
       status: 'success',
-      message: 'Featured movies fetched successfully',
+      message: 'Featured movie fetched successfully',
       data: featuredMovie,
     });
+
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -162,25 +212,47 @@ const getFeaturedMovie = async (req, res) => {
   }
 };
 
-// Method for making a movie featured = true by taking movieId from params
+// New Method for making a movie featured = true by taking movieId from params
 const makeMovieFeatured = async (req, res) => {
   const _id = req.params.movieId;
+
   try {
-    const movie = await Movie.findByIdAndUpdate(_id, { isFeatured: true });
-    return !movie
-      ? res.status(404).send({
+    // 1. Check if movie exists
+    const movie = await Movie.findById(_id);
+    if (!movie) {
+      return res.status(404).send({
         status: "error",
         message: "Movie not found!"
-      })
-      : res.send({
-        status: "success",
-        message: "Movie featured successfully!",
-        data: movie,
       });
-  } catch (e) {
+    }
+
+    // 2. Check if already featured
+    if (movie.isFeatured) {
+      return res.send({
+        status: "success",
+        message: "Movie is already featured!",
+        data: movie
+      });
+    }
+
+    // 3. Un-feature all other movies
+    await Movie.updateMany({ isFeatured: true }, { isFeatured: false });
+
+    // 4. Feature the selected movie
+    movie.isFeatured = true;
+    await movie.save();
+
+    // 5. Send success response
+    res.send({
+      status: "success",
+      message: "Movie featured successfully!",
+      data: movie
+    });
+
+  } catch (error) {
     res.status(500).send({
       status: "error",
-      message: error.message,
+      message: error.message
     });
   }
 };

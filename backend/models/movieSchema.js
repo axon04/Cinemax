@@ -48,7 +48,7 @@ const movieSchema = new Schema({
     type: Number,
     required: true,
   },
-  isFeautured: {
+  isFeatured: {
     type: Boolean,
   },
   releaseDate: {
