@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchBookings } from "../store/actions/bookings";
 import { format, parse } from 'date-fns';
@@ -15,7 +15,6 @@ import {
   Chip,
   Button,
   Dialog,
-  DialogTitle,
   DialogContent,
   IconButton,
 } from "@mui/material";
@@ -68,7 +67,7 @@ const Bookings = () => {
     html2canvas(qrElement).then((canvas) => {
       const link = document.createElement("a");
       link.href = canvas.toDataURL("image/png");
-      link.download = "ticket_qr_code.png";
+      link.download = `ticket_${selectedBooking._id}.png`;
       link.click();
     });
   };

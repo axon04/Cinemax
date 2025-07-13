@@ -1,14 +1,11 @@
-const { get } = require('mongoose');
 const Booking = require('../models/bookingSchema');
-const { fetchUserFromToken, extractTokenFromReq } = require('../utils/tokenUtil');
+const { isCheckinAllowed } = require('../utils/checkinUtil');
 
 // Create booking
 const createBooking = async (req, res) => {
     try {
-        const token = extractTokenFromReq(req);
-        const user = await fetchUserFromToken(token);
         const booking = new Booking({
-            user: user._id,
+            user: req.user._id,
             showtime: req.body.showtime,
             bookedSeats: req.body.seats,
             movie: req.body.movie,
@@ -26,14 +23,25 @@ const createBooking = async (req, res) => {
             message: error.message,
         });
     }
-}
+};
 
 // Get all bookings for a user
 const getUserBookings = async (req, res) => {
     try {
-        const token = extractTokenFromReq(req);
-        const user = await fetchUserFromToken(token);
-        const bookings = await Booking.find({ user: user._id });
+        let bookings = await Booking.find({ user: req.user._id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        bookings = bookings.map(booking => {
+            if (booking.showtime) {
+                delete booking.showtime.movieId;
+                if (booking.showtime.screenId) {
+                    delete booking.showtime.screenId.layout;
+                }
+            }
+            return booking;
+        });
+
         res.status(200).json({
             "status": "success",
             "data": bookings
@@ -44,7 +52,7 @@ const getUserBookings = async (req, res) => {
             "message": error.message
         });
     }
-}
+};
 
 // Get all bookings
 const getAllBookings = async (req, res) => {
@@ -60,7 +68,7 @@ const getAllBookings = async (req, res) => {
             "message": error
         });
     }
-}
+};
 
 const getBookedSeats = async (req, res) => {
     const { showtimeId, screenId } = req.params;
@@ -92,7 +100,7 @@ const getBookedSeats = async (req, res) => {
             message: 'Error fetching booked seats',
         });
     }
-}
+};
 
 // Update booking
 const updateBooking = async (req, res) => {
@@ -109,7 +117,7 @@ const updateBooking = async (req, res) => {
             message: error.message,
         });
     }
-}
+};
 
 // Delete booking
 const deleteBooking = async (req, res) => {
@@ -125,46 +133,61 @@ const deleteBooking = async (req, res) => {
             message: error.message,
         });
     }
-}
-// For checking booking
+};
+
+// Booking checkin
 const checkBooking = async (req, res) => {
     try {
-        const bookingId = req.params.bookingId;
-        const booking = await Booking.findById(bookingId);
+        const booking = await Booking.findById(req.params.bookingId);
         if (!booking) {
             return res.status(404).json({
                 status: 'error',
                 message: 'Booking not found',
             });
         }
-        if (booking.status === 'checked') {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Booking already checked',
-            });
-        }
-        if (booking.status === 'expired') {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Booking expired',
-            });
-        }
-        if (booking.status === 'booked') {
-            booking.status = 'checked';
-            await booking.save();
-            res.status(200).json({
-                status: 'success',
-                message: 'Booking checked successfully',
-                data: { booking },
-            });
+
+        switch (booking.status) {
+            case 'checked':
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Booking already checked',
+                });
+
+            case 'expired':
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Booking expired',
+                });
+
+            case 'booked':
+                if (!isCheckinAllowed(booking.showtime)) {
+                    return res.status(400).json({
+                        status: 'error',
+                        message: 'Check-in not allowed before 1 hour of showtime',
+                    });
+                }
+
+                booking.status = 'checked';
+                await booking.save();
+                return res.status(200).json({
+                    status: 'success',
+                    message: 'Booking checked successfully',
+                    data: { booking },
+                });
+
+            default:
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid booking status',
+                });
         }
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             status: 'error',
             message: 'Error checking booking',
         });
     }
-}
+};
 
 module.exports = {
     createBooking,
@@ -173,5 +196,5 @@ module.exports = {
     getBookedSeats,
     updateBooking,
     deleteBooking,
-    checkBooking
+    checkBooking,
 };
